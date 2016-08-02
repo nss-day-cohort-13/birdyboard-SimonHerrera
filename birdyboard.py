@@ -1,3 +1,8 @@
+import csv
+
+
+
+
 import sys
 import pickle
 
@@ -38,6 +43,9 @@ class Birdyboard:
   # option 3
   def view_chirps(self):
     # if user present allow current user to see public and private chirps
+    # csv example below used on a practice exercise I did (save here for now)
+    # with open ('chirps.csv') as csvfile:
+    #     readCSV = csv.reader(csvfile, delimiter=',') # splits on comma or cell
     pass
 
   # option 4

@@ -39,3 +39,4 @@ class TestBirdyboard (unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
     # print('Running')
+# python birdyboard_tests.py -v
