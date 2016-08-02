@@ -36,8 +36,25 @@ class TestBirdyboard (unittest.TestCase):
 
 
   #Test all options except quit and veriy a non valid entry fails
-  def test_menu_option_choices(self):
-    assert 10 == 10
+  def test_show_menu_option_choices(self):
+    # self.assertEqual(self.birdyboard.show_menu(), '1')
+    option = self.birdyboard.show_menu(1)
+    self.assertEqual(1, option)
+
+    # self.assertEqual([0, 1, 2, 3, 4], list(range(5)))
+
+    # option = self.birdyboard.show_menu(2)
+    # self.assertEqual(2, option)
+    # option = self.birdyboard.show_menu(3)
+    # self.assertEqual(3, option)
+    # option = self.birdyboard.show_menu(4)
+    # self.assertEqual(4, option)
+    # option = self.birdyboard.show_menu(5)
+    # self.assertEqual(5, option)
+    # option = self.birdyboard.show_menu(6)
+    # self.assertEqual(6, option)
+    # option = self.birdyboard.show_menu(7)
+    # self.assertEqual(False, option)
     # Decide if I need to test choices
 
 
