@@ -6,14 +6,16 @@ class TestBirdyboard (unittest.TestCase):
 
   @classmethod
   def setUp(self):
-    self.birdyboard = Birdyboard()
+    self.birdyboard = Birdyboard('test_users.p', 'test_chirps.p', 'test_conversations.p')
 
   def test_user_created(self):
-    # self.user = Birdyboard()
     self.user = self.birdyboard.create_user("Dennis Johnson", "dtrain")
-    self.assertEqual("dtrain", self.user)
+    # for user in
+    self.assertEqual("Dennis Johnson", self.user.full_name)
+    self.assertEqual("dtrain", self.user.user_name)
+    self.assertIsNotNone(self.user.user_uuid)
 
-    assert 1 == 1
+    # assert 1 == 1
     # actual tests to go here
 
 

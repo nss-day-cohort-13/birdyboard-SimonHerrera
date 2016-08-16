@@ -1,36 +1,58 @@
-import csv
 import os
 import sys
 import pickle
 import time
 import uuid
+from user import *
+from chirp import *
 
-class Birdyboard:
+class Birdyboard():
 
-  def __init__(self):
+
+  def __init__(self, users_filename, chirps_filename, conversations_filename):
     """ Initialization
 
     """
-    self.new_user = {}
+    self.users_filename = users_filename
+    self.chirps_filename = chirps_filename
+    self.conversations_filename = conversations_filename
     self.current_user = None
-    self.all_users = [] # list of all users
-    try:
-      self.deserialize_users() # runs this
-    except EOFError:
-      self.all_users = []
-    # pass
+    self.current_chirp = None
+    self.current_conversation = None
 
-  def show_menu(self):
-    """ Show main menu and allow for option selection
+    try:
+      self.all_users = self.deserialize_data(self.users_filename)
+    except EOFError:
+      self.all_users = {}
+    try:
+      self.all_chirps = self.deserialize_data(self.chirps_filename)
+    except EOFError:
+      self.all_chirps = {}
+    try:
+      self.all_conversations = self.deserialize_data(self.conversations_filename)
+    except EOFError:
+      self.all_conversations = {}
+
+
+  def page_clear(self):
+    """ This clears the page when called
 
     """
     clear = lambda: os.system('cls')
     clear()
 
+
+  def show_menu(self):
+    """ Show main menu and allow for option selection
+
+    """
     while True:
       self.page_clear()
-      print('This is the current user: ', self.current_user)
-      time.sleep(.3)
+      if not self.current_user:
+        print('No Current User')
+      else:
+        print('Current User: ', self.current_user.user_name)
+
       print("""  #########################################
   ##           Birdyboard~~~~~           ##
   #########################################
@@ -40,37 +62,44 @@ class Birdyboard:
   4. Public Chirp
   5. Private Chirp
   6. Exit""")
-      choice  = input(" Select an option: > ")
-      try:
-        choice = int(choice)
-      except Exception:
-        self.main_menu_invalid_input()
-        continue
+      user_choice  = input(" Select an option: > ").lower()
 
-      if choice == 1:
+      if user_choice == '1':
+        # Create and gather info to append to all_users
         self.page_clear()
         print('You have chosen to create a new account')
         full_name = input('Type in your desired Full Name: ')
         user_name = input('Type in your desired User Name: ')
-        self.current_user = self.create_user(full_name, user_name)
-      elif choice == 2:
+        self.current_user = self.create_user(full_name, user_name) # this = new_user
+
+      elif user_choice == '2':
         self.select_user()
-      elif choice == 3:
+      elif user_choice == '3':
+        self.page_clear()
+
+        self.select_chirp()
+      elif user_choice == '4':
         if not self.current_user:
           self.main_menu_invalid_input()
         else:
-          self.view_chirps()
-      elif choice == 4:
+          self.page_clear()
+          print('You have chosen to create a new Public Chirp')
+          chirp_message = input('Type your new Chirp: ')
+          self.current_chirp = self.create_public_chirp(chirp_message, self.current_user.user_uuid) # this = new_chirp
+      elif user_choice == '5':
         if not self.current_user:
           self.main_menu_invalid_input()
         else:
-          self.write_public_chirps()
-      elif choice == 5:
-        if not self.current_user:
-          self.main_menu_invalid_input()
-        else:
-          self.write_private_chirps()
-      elif choice == 6:
+          self.page_clear()
+          print('You have chosen to create a new Private Chirp')
+          current_receiver = self.select_receiver()
+          if current_receiver == None:
+            print('There is no receiver')
+            self.show_menu()
+          else:
+            chirp_message = input ('Type your new Chirp: ')
+            self.current_chirp = self.create_private_chirp(chirp_message, self.current_user.user_uuid, True, current_receiver)
+      elif user_choice == '6':
         sys.exit()
       else:
         self.main_menu_invalid_input()
@@ -82,8 +111,7 @@ class Birdyboard:
     """
     print('This is not a valid selection - please try again')
     time.sleep(1.5)
-    clear = lambda: os.system('cls')
-    clear()
+
 
   def select_user_invalid_input(self):
     """ This reloads the select user menu if no valid option is selected
@@ -95,125 +123,179 @@ class Birdyboard:
     clear()
 
 
-  def page_clear(self):
-    """ This clears the page when called
-
-    """
-    clear = lambda: os.system('cls')
-    clear()
-
 
   def list_users(self):
     """ This lists and adds a number to allow for user selection
 
     """
-    count = 1
-    for user in self.all_users:
-      print(str(count) + '. ' + user[2])
-      count = count + 1
+    line_count = 1
+    user_line_to_uuid = {} #new dict to hold uuid
+    for uuid, value in self.all_users.items():
+      user_line_to_uuid[str(line_count)] = uuid
+      print('{}.  {}'.format(line_count, value.user_name))
+      line_count += 1
+    return user_line_to_uuid # to select_customer
+
+    ##Old Code
+    # count = 1
+    # for user in self.all_users:
+    #   print(str(count) + '. ' + user[2])
+    #   count = count + 1
+
+  def list_chirps(self):
+    """ This lists all public chirps as well as chirps the current user is associated with
+
+    """
+    line_count = 1
+    chirp_line_to_uuid = {} #new dict to hold uuid
+    for uuid, value in self.all_chirps.items():
+      chirp_line_to_uuid[str(line_count)] = uuid
+      print('{}.  {}'.format(line_count, value.chirp_message))
+      line_count += 1
+    return chirp_line_to_uuid # to select_chirp
 
 
   def create_user(self, full_name, user_name):
     """ This is used to create a new user
 
     """
+    new_user = User(full_name, user_name)
 
-    # Create and gather info to append to all_users
-    newuid = uuid.uuid4()
-    self.all_users.append([newuid, full_name, user_name])
-    # Welcome new user
-    print('Welcome: {}'.format(user_name))
-    time.sleep(1.5)
-    self.serialize_users()
-    return user_name
-
+    self.all_users[new_user.user_uuid] = new_user
+    self.serialize_data(self.all_users, self.users_filename)
+    time.sleep(1)
+    return new_user
 
   def select_user(self):
     """ Allows user to select the active user
 
     """
     # will allow current user to select a user to proceed
-    if self.all_users == []:
-      print('Currently no users exist, please Create a new user')
-      time.sleep(1.5)
-      self.show_menu()
-    else:
-
-      while True:
-        self.page_clear()
-        print('List of Users')
-        self.list_users()
-        selected = input("Pick a User? > ")
-
-        try:
-          selected = int(selected)
-        except Exception:
-          self.select_user_invalid_input()
-          continue
-
-        if (selected >= 1) & (selected <= len(self.all_users)):
-          try:
-            # print('len', len(self.all_users))
-            # print('selected ', selected)
-            # print('selected ', self.all_users[3][2])
-            # print('all users ', self.all_users)
-            self.current_user = self.all_users[selected-1][2]
-            print('Welcome: ', self.current_user)
-            time.sleep(1.5)
-            break
-          except Exception:
-            self.select_user_invalid_input()
-            continue
+    while True:
+      self.page_clear()
+      print('Select a User')
+      if self.all_users == {}:
+        print('No users exist, please create a new user')
+        time.sleep(1.5)
+        return #back to main menu
+      else:
+        user_line_to_uuid = self.list_users() # returns uuid {line_number: uuid}
+        line_number = input("Select a User > ") # line_number = line selected
+        if line_number not in user_line_to_uuid:
+          print('Not a valid User')
+          time.sleep(1)
         else:
-          self.select_user_invalid_input()
+          current_uuid = user_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          self.current_user = self.all_users.get(current_uuid) # pass uuid from line = current cust
+          return #back to main menu
 
-      self.show_menu()
+  def select_receiver(self):
+    """ Allows user to select the active user
 
-  # option 3
-  def view_chirps(self):
-    # if user present allow current user to see public and private chirps
-    # csv example below used on a practice exercise I did (save here for now)
-    # with open ('chirps.csv') as csvfile:
-    #     readCSV = csv.reader(csvfile, delimiter=',') # splits on comma or cell
-    pass
+    """
+    # will allow current user to select a receiver of a chirp
+    while True:
+      self.page_clear()
+      if len(self.all_users) == 1:
+        print('You are the only user, you cannot send a Chirp to yourself')
+        time.sleep(2)
+        return None
+      else:
+        receiver_line_to_uuid = self.list_users() # returns uuid {line_number: uuid}
+        line_number = input("Select a Receiver > ") # line_number = line selected
+        if line_number not in receiver_line_to_uuid:
+          print('Not a valid User')
+          time.sleep(1)
+        else:
+          current_uuid = user_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          return self.all_users.get(current_uuid) # pass uuid from line = current receiver+
 
+        # print('Who are you sending this Chirp to? ')
+        # self.list_users()
+        # time.sleep(1)
+      # return # rec uuid
+
+  def select_chirp(self):
+    """ Allows user to select a Chirp to reply to
+
+    """
+    # will allow current user to select a Chrip
+    while True:
+      self.page_clear()
+      print('Select a Chirp')
+      if self.all_chirps == {}:
+        print('No chirps exist, please create a Chirp')
+        time.sleep(1.5)
+        return #back to main menu
+      else:
+        chirp_line_to_uuid = self.list_chirps() # returns uuid {line_number: uuid}
+        line_number = input("Select a Chirp > ") # line_number = line selected
+        if line_number not in chirp_line_to_uuid:
+          print('Not a valid Chirp')
+          time.sleep(1)
+        else:
+          current_uuid = chirp_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          self.current_chirp = self.all_chirps.get(current_uuid) # pass uuid from line = current cust
+          return #back to main menu
 
   # option 4
-  def write_public_chirps(self):
-    # if user present, allow current user to create public chirps
-    pass
+  def create_public_chirp(self, chirp_message, user_uuid):
+    # if user present, allow current user to create a public chirp
+    """ This is used to create a public chirp
+
+    """
+    new_chirp = Chirp(chirp_message, user_uuid)
+    # new_chirp.private = True
+    # print('show', new_chirp.private)
+    # time.sleep(1)
+
+    self.all_chirps[new_chirp.chirp_uuid] = new_chirp
+    self.serialize_data(self.all_chirps, self.chirps_filename)
+    time.sleep(1)
+    return new_chirp
 
 
   # option 5
-  def write_private_chirps(self):
-    # if user present, allow current user to select another user
-    # to write a chirp to
-    pass
-
-
-  def serialize_users(self):
-    """ wb+ w/r write to file
+  def create_private_chirp(self, chirp_message, user_uuid, private, receiver):
+    # if user present, allow current user to create a private chirp
+    """ This is used to create a private chirp
 
     """
-    with open('users.txt', 'wb+') as file:
-      pickle.dump(self.all_users, file)
+    new_chirp = Chirp(chirp_message, user_uuid, private, receiver)
+    print('show pri', new_chirp.private)
+    print('show rec', new_chirp.receiver)
+    time.sleep(1)
 
 
-  def deserialize_users(self):
+    self.all_chirps[new_chirp.chirp_uuid] = new_chirp
+    self.serialize_data(self.all_chirps, self.chirps_filename)
+    time.sleep(1)
+    return new_chirp
+
+
+  def serialize_data(self, data, filename):
+    """ wb+ w/r write to file
+,
+    """
+    with open(filename, 'wb+') as file:
+      pickle.dump(data, file)
+
+
+  def deserialize_data(self, filename):
     """ rb+ w/r load on initialization
 
     """
     try:
-      with open('users.txt', 'rb+') as file:
-        self.all_users = pickle.load(file)
+      with open(filename, 'rb+') as file:
+        data = pickle.load(file)
     except FileNotFoundError: # Raised when a file or directory is requested but doesn’t exist
-      self.all_users = []
+      data = {}
 
-      return self.all_users
+    return data
 
 
 if __name__ == '__main__':
-  birdyboard = Birdyboard()
+  birdyboard = Birdyboard('users.p', 'chirps.p', 'conversations.p')
   birdyboard.show_menu()
 
-# to run - python birdybaord.py
+# to run - python birdyboard.py
