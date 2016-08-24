@@ -6,20 +6,16 @@ class TestBirdyboard (unittest.TestCase):
 
   @classmethod
   def setUp(self):
-    self.birdyboard = Birdyboard('test_users.p', 'test_chirps.p', 'test_conversations.p')
+    self.birdyboard = Birdyboard('test_users.p', 'test_chirps.p')
 
   def test_user_created(self):
     self.user = self.birdyboard.create_user("Dennis Johnson", "dtrain")
-    # for user in
     self.assertEqual("Dennis Johnson", self.user.full_name)
     self.assertEqual("dtrain", self.user.user_name)
     self.assertIsNotNone(self.user.user_uuid)
 
-    # assert 1 == 1
-    # actual tests to go here
 
-
-  def test_user_selected(self):
+  def test_create_public_chirp(self):
     assert 2 == 2
     # actual tests to go here
 
@@ -44,7 +40,7 @@ if __name__ == '__main__':
     unittest.main()
 
 # to run unittest...
-# python birdyboard_tests.py -v
+# python test_birdyboard.py -v
 
 # to run coverage ...
 # coverage run birdboard.py
