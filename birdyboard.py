@@ -9,16 +9,17 @@ from chirp import *
 class Birdyboard():
 
 
-  def __init__(self, users_filename, chirps_filename, conversations_filename):
+  # def __init__(self, users_filename, chirps_filename, conversations_filename):
+  def __init__(self, users_filename, chirps_filename):
     """ Initialization
 
     """
     self.users_filename = users_filename
     self.chirps_filename = chirps_filename
-    self.conversations_filename = conversations_filename
+    # self.conversations_filename = conversations_filename
     self.current_user = None
     self.current_chirp = None
-    self.current_conversation = None
+    # self.current_conversation = None
 
     try:
       self.all_users = self.deserialize_data(self.users_filename)
@@ -28,10 +29,10 @@ class Birdyboard():
       self.all_chirps = self.deserialize_data(self.chirps_filename)
     except EOFError:
       self.all_chirps = {}
-    try:
-      self.all_conversations = self.deserialize_data(self.conversations_filename)
-    except EOFError:
-      self.all_conversations = {}
+    # try:
+    #   self.all_conversations = self.deserialize_data(self.conversations_filename)
+    # except EOFError:
+    #   self.all_conversations = {}
 
 
   def page_clear(self):
@@ -74,10 +75,11 @@ class Birdyboard():
 
       elif user_choice == '2':
         self.select_user()
+
       elif user_choice == '3':
         self.page_clear()
-
         self.select_chirp()
+
       elif user_choice == '4':
         if not self.current_user:
           self.main_menu_invalid_input()
@@ -86,6 +88,7 @@ class Birdyboard():
           print('You have chosen to create a new Public Chirp')
           chirp_message = input('Type your new Chirp: ')
           self.current_chirp = self.create_public_chirp(chirp_message, self.current_user.user_uuid) # this = new_chirp
+
       elif user_choice == '5':
         if not self.current_user:
           self.main_menu_invalid_input()
@@ -98,9 +101,11 @@ class Birdyboard():
             self.show_menu()
           else:
             chirp_message = input ('Type your new Chirp: ')
-            self.current_chirp = self.create_private_chirp(chirp_message, self.current_user.user_uuid, True, current_receiver)
+            self.current_chirp = self.create_private_chirp(chirp_message, self.current_user.user_uuid, True, current_receiver.user_uuid)
+
       elif user_choice == '6':
         sys.exit()
+
       else:
         self.main_menu_invalid_input()
 
@@ -123,7 +128,6 @@ class Birdyboard():
     clear()
 
 
-
   def list_users(self):
     """ This lists and adds a number to allow for user selection
 
@@ -136,11 +140,6 @@ class Birdyboard():
       line_count += 1
     return user_line_to_uuid # to select_customer
 
-    ##Old Code
-    # count = 1
-    # for user in self.all_users:
-    #   print(str(count) + '. ' + user[2])
-    #   count = count + 1
 
   def list_chirps(self):
     """ This lists all public chirps as well as chirps the current user is associated with
@@ -148,10 +147,23 @@ class Birdyboard():
     """
     line_count = 1
     chirp_line_to_uuid = {} #new dict to hold uuid
+    if self.current_user:
+      print("""
+  <<Private Chirps>>""")
+      for uuid, value in self.all_chirps.items():
+        if value.private:
+          if value.user_uuid == self.current_user.user_uuid or value.receiver == self.current_user.user_uuid:
+            # if the current user is either the author, or the reciever, print the chirp.
+            chirp_line_to_uuid[str(line_count)] = uuid
+            print('{}. {} -   {}'.format(line_count, self.all_users.get(value.user_uuid).user_name, value.chirp_message))
+            line_count += 1
+    print("""
+  <<Public Chirps>>""")
     for uuid, value in self.all_chirps.items():
-      chirp_line_to_uuid[str(line_count)] = uuid
-      print('{}.  {}'.format(line_count, value.chirp_message))
-      line_count += 1
+      if not value.private:
+        chirp_line_to_uuid[str(line_count)] = uuid
+        print('{}. {} -   {}'.format(line_count, self.all_users.get(value.user_uuid).user_name, value.chirp_message))
+        line_count += 1
     return chirp_line_to_uuid # to select_chirp
 
 
@@ -179,13 +191,13 @@ class Birdyboard():
         time.sleep(1.5)
         return #back to main menu
       else:
-        user_line_to_uuid = self.list_users() # returns uuid {line_number: uuid}
+        user_line_to_uuid = self.list_users() # var = to list_users
         line_number = input("Select a User > ") # line_number = line selected
-        if line_number not in user_line_to_uuid:
+        if line_number not in user_line_to_uuid: # if input not in list-users number
           print('Not a valid User')
           time.sleep(1)
         else:
-          current_uuid = user_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          current_uuid = user_line_to_uuid.get(line_number) # current_uuid = value of line number and its number
           self.current_user = self.all_users.get(current_uuid) # pass uuid from line = current cust
           return #back to main menu
 
@@ -207,7 +219,7 @@ class Birdyboard():
           print('Not a valid User')
           time.sleep(1)
         else:
-          current_uuid = user_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          current_uuid = receiver_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
           return self.all_users.get(current_uuid) # pass uuid from line = current receiver+
 
         # print('Who are you sending this Chirp to? ')
@@ -222,21 +234,30 @@ class Birdyboard():
     # will allow current user to select a Chrip
     while True:
       self.page_clear()
-      print('Select a Chirp')
+      print("Select a Chirp or type 'e' to return to the previous menu")
       if self.all_chirps == {}:
         print('No chirps exist, please create a Chirp')
         time.sleep(1.5)
         return #back to main menu
       else:
-        chirp_line_to_uuid = self.list_chirps() # returns uuid {line_number: uuid}
+        chirp_line_to_uuid = self.list_chirps() # Shows list of Chirps - var = list_chirps
         line_number = input("Select a Chirp > ") # line_number = line selected
-        if line_number not in chirp_line_to_uuid:
+        line_number.lower()
+        if line_number == 'e':
+          return # to main menu
+        elif line_number not in chirp_line_to_uuid: # if selected num not a line num in list_chirps
           print('Not a valid Chirp')
           time.sleep(1)
         else:
-          current_uuid = chirp_line_to_uuid.get(line_number) # get uuid from cu_line_to_uuid
+          current_uuid = chirp_line_to_uuid.get(line_number) # var = listed chirps(that num)
           self.current_chirp = self.all_chirps.get(current_uuid) # pass uuid from line = current cust
+          # self.current_chirp = self.all_chirps.get(self.chirp_message) # pass uuid from line = current cust
+
+          print('You have chosen to view a chirp')
+          time.sleep(2)
+          self.print_selected_chirp(self.current_chirp)
           return #back to main menu
+
 
   # option 4
   def create_public_chirp(self, chirp_message, user_uuid):
@@ -245,9 +266,6 @@ class Birdyboard():
 
     """
     new_chirp = Chirp(chirp_message, user_uuid)
-    # new_chirp.private = True
-    # print('show', new_chirp.private)
-    # time.sleep(1)
 
     self.all_chirps[new_chirp.chirp_uuid] = new_chirp
     self.serialize_data(self.all_chirps, self.chirps_filename)
@@ -262,10 +280,6 @@ class Birdyboard():
 
     """
     new_chirp = Chirp(chirp_message, user_uuid, private, receiver)
-    print('show pri', new_chirp.private)
-    print('show rec', new_chirp.receiver)
-    time.sleep(1)
-
 
     self.all_chirps[new_chirp.chirp_uuid] = new_chirp
     self.serialize_data(self.all_chirps, self.chirps_filename)
@@ -273,9 +287,15 @@ class Birdyboard():
     return new_chirp
 
 
+  def print_selected_chirp(self, current_chirp):
+    self.page_clear()
+    print('Here is your chirp\n\n', self.current_chirp.chirp_message)
+    input("\nPress Enter to return to Chirp Selection")
+    self.select_chirp()
+
   def serialize_data(self, data, filename):
     """ wb+ w/r write to file
-,
+
     """
     with open(filename, 'wb+') as file:
       pickle.dump(data, file)
@@ -295,7 +315,9 @@ class Birdyboard():
 
 
 if __name__ == '__main__':
-  birdyboard = Birdyboard('users.p', 'chirps.p', 'conversations.p')
+  # birdyboard = Birdyboard('users.p', 'chirps.p', 'conversations.p')
+  birdyboard = Birdyboard('users.p', 'chirps.p')
   birdyboard.show_menu()
 
 # to run - python birdyboard.py
+
